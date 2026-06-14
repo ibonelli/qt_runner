@@ -1,0 +1,27 @@
+# Configuration file for Qt Script Launcher
+# Available placeholders:
+#   {input}     - The full dropped path (file/folder) or the YouTube link.
+#   {filename}  - The filename portion of a path (e.g., "video.mp4"). If input is a URL, this will be the URL.
+#   {dirname}   - The parent directory path (e.g., "/home/user/Downloads"). If input is a URL, this will be the current directory.
+#   {basename}  - The filename without its extension (e.g., "video").
+
+scripts:
+  - name: "Echo Input Info"
+    command: "echo '=== Input details ===' && echo 'Full Input: {input}' && echo 'Directory: {dirname}' && echo 'Filename: {filename}' && echo 'Basename: {basename}'"
+    description: "Display info about the current dropped file/link"
+
+  - name: "File Properties (ls -lh)"
+    command: "ls -lh '{input}'"
+    description: "Run 'ls -lh' on the dropped file/directory"
+
+  - name: "Check File Type"
+    command: "file '{input}'"
+    description: "Determine the file type using the system 'file' utility"
+
+  - name: "Download YouTube Audio"
+    command: "yt-dlp -x --audio-format mp3 -o '%(title)s.%(ext)s' '{input}'"
+    description: "Download audio from YouTube link using yt-dlp (requires yt-dlp)"
+
+  - name: "Download YouTube Video"
+    command: "yt-dlp -f mp4 -o '%(title)s.%(ext)s' '{input}'"
+    description: "Download video from YouTube link using yt-dlp (requires yt-dlp)"

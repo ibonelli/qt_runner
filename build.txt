@@ -1,0 +1,6 @@
+Antigravity CLI 1.0.5
+Gemini 3.5 Flash (Medium)
+
+I want to create a QT application that can run in Windows or Linux and has a drag and drop UI which lets you configure what you are going to run. So it will use the drag and drop UI for getting file names or YouTube links. Once the you have either a file+path names or the YouTube link, you have a list of configured scripts (as buttons) that get triggered. The buttons/scripts are configured in a YML file, and take the file/link from the drag and drop UI.
+
+Resume: agy --conversation=91af1f28-51ed-4fe8-b0a8-c1842b5e0d7c (or -c)
