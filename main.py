@@ -172,6 +172,9 @@ class MainWindow(QMainWindow):
         self.runner.output_received.connect(self.on_runner_output)
         self.runner.finished.connect(self.on_runner_finished)
         self.scripts = []
+        self.batch_items = []
+        self.batch_index = 0
+        self.current_batch_script = None
 
         self.setWindowTitle("Cross-Platform Qt Script Launcher")
         self.resize(900, 650)
@@ -278,6 +281,11 @@ class MainWindow(QMainWindow):
         input_container.addWidget(btn_browse_dir)
 
         workspace_layout.addLayout(input_container)
+
+        self.batch_label = QLabel("", workspace)
+        self.batch_label.setObjectName("batch-label")
+        self.batch_label.setVisible(False)
+        workspace_layout.addWidget(self.batch_label)
 
         # Divider line
         line = QFrame()
@@ -482,6 +490,12 @@ class MainWindow(QMainWindow):
                 color: #a0a0b2;
             }
 
+            #batch-label {
+                font-size: 12px;
+                color: #00adb5;
+                padding: 2px 0px;
+            }
+
             /* Dynamic Script List Buttons */
             .script-btn {
                 background-color: #222228;
@@ -603,33 +617,77 @@ class MainWindow(QMainWindow):
             self.create_default_config()
         QDesktopServices.openUrl(QUrl.fromLocalFile(self.config_path))
 
+    def _try_load_batch(self, file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = [l.strip() for l in f if l.strip() and not l.strip().startswith('#')]
+            return lines if len(lines) >= 2 else None
+        except Exception:
+            return None
+
+    def _update_batch_label(self):
+        if self.batch_items:
+            self.batch_label.setText(f"Batch mode: {len(self.batch_items)} items loaded")
+            self.batch_label.setVisible(True)
+        else:
+            self.batch_label.setVisible(False)
+
+    def _set_input(self, value):
+        self.input_edit.setText(value)
+        self.batch_items = []
+        self.batch_index = 0
+        if os.path.isfile(value):
+            batch = self._try_load_batch(value)
+            if batch:
+                self.batch_items = batch
+        self._update_batch_label()
+
     @pyqtSlot(str)
     def on_item_dropped(self, text):
-        self.input_edit.setText(text)
-        self.append_info_log(f"Input target set to: {text}")
+        self._set_input(text)
+        if self.batch_items:
+            self.append_info_log(f"Batch list loaded from: {text} ({len(self.batch_items)} items)")
+        else:
+            self.append_info_log(f"Input target set to: {text}")
 
     def browse_file(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Select File")
         if file_name:
-            self.input_edit.setText(file_name)
-            self.append_info_log(f"Input target set to file: {file_name}")
+            self._set_input(file_name)
+            if self.batch_items:
+                self.append_info_log(f"Batch list loaded from: {file_name} ({len(self.batch_items)} items)")
+            else:
+                self.append_info_log(f"Input target set to file: {file_name}")
 
     def browse_directory(self):
         dir_name = QFileDialog.getExistingDirectory(self, "Select Directory")
         if dir_name:
-            self.input_edit.setText(dir_name)
+            self._set_input(dir_name)
             self.append_info_log(f"Input target set to directory: {dir_name}")
 
     def run_script(self, index):
-        input_target = self.input_edit.text().strip()
-        if not input_target:
-            QMessageBox.information(
-                self, 
-                "No Input Target", 
-                "Please drag & drop a file/link or click File/Folder to choose a target first."
+        if self.batch_items:
+            self.batch_index = 0
+            self.current_batch_script = index
+            self.clear_console()
+            self.append_info_log(
+                f"Starting batch run: {len(self.batch_items)} items\n" + "-" * 60
             )
-            return
+            self._run_single(self.batch_items[0], index)
+        else:
+            input_target = self.input_edit.text().strip()
+            if not input_target:
+                QMessageBox.information(
+                    self,
+                    "No Input Target",
+                    "Please drag & drop a file/link or click File/Folder to choose a target first."
+                )
+                return
+            self.current_batch_script = None
+            self.clear_console()
+            self._run_single(input_target, index)
 
+    def _run_single(self, input_target, index):
         if index >= len(self.scripts):
             return
 
@@ -638,8 +696,8 @@ class MainWindow(QMainWindow):
         script_name = script.get('name', 'Script')
 
         is_local_path = os.path.exists(input_target) or (
-            not input_target.startswith("http://") and 
-            not input_target.startswith("https://") and 
+            not input_target.startswith("http://") and
+            not input_target.startswith("https://") and
             os.path.isabs(input_target)
         )
 
@@ -665,7 +723,6 @@ class MainWindow(QMainWindow):
         for key, val in placeholders.items():
             command = command.replace(f"{{{key}}}", val)
 
-        self.clear_console()
         self.append_info_log(f"Starting Script: {script_name}")
         self.append_info_log(f"Command: {command}\n" + "-" * 60 + "\n")
 
@@ -702,10 +759,26 @@ class MainWindow(QMainWindow):
             self.append_info_log("Process finished successfully (exit code 0).")
         else:
             self.append_err_log(f"Process exited with non-zero code: {exit_code}")
-        
+
+        if self.batch_items and self.current_batch_script is not None:
+            self.batch_index += 1
+            if self.batch_index < len(self.batch_items):
+                next_item = self.batch_items[self.batch_index]
+                self.append_info_log(
+                    f"\nBatch progress: item {self.batch_index + 1}/{len(self.batch_items)}\n" + "-" * 60
+                )
+                self._run_single(next_item, self.current_batch_script)
+                return
+            else:
+                self.append_info_log(
+                    f"\nBatch complete: {len(self.batch_items)} items processed."
+                )
+
         self.set_ui_running_state(False)
 
     def stop_current_script(self):
+        self.batch_index = 0
+        self.current_batch_script = None
         self.append_err_log("\n[User requested abort... Terminating process]")
         self.runner.stop()
 
