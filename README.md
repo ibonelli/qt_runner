@@ -77,4 +77,3 @@ scripts:
 1. **Mime Detection**: The drag-and-drop container (`DropZone`) subclasses `QFrame` and intercepts `dragEnterEvent` and `dropEvent`. It inspects URLs to extract local file paths using `toLocalFile()` and falls back to string parsing for browser-dragged URLs.
 2. **Process Wrapper**: A custom `CommandRunner` subclasses `QObject` and holds a `QProcess`. It fires the command string through the system shell (`/bin/sh` on Unix-like platforms and `cmd.exe` on Windows).
 3. **Responsive GUI**: Standard output and error buffers are piped using asynchronous Qt signals, which write to a custom colored terminal control (`QTextEdit` with `QTextCharFormat`).
-# qt_runner
