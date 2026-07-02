@@ -282,10 +282,21 @@ class MainWindow(QMainWindow):
 
         workspace_layout.addLayout(input_container)
 
+        batch_row = QHBoxLayout()
+
         self.batch_label = QLabel("", workspace)
         self.batch_label.setObjectName("batch-label")
         self.batch_label.setVisible(False)
-        workspace_layout.addWidget(self.batch_label)
+        batch_row.addWidget(self.batch_label)
+
+        self.btn_clear_batch = QPushButton("✖ Clear Batch", workspace)
+        self.btn_clear_batch.setObjectName("btn-secondary-sm")
+        self.btn_clear_batch.setVisible(False)
+        self.btn_clear_batch.clicked.connect(self.clear_batch)
+        batch_row.addWidget(self.btn_clear_batch)
+
+        batch_row.addStretch()
+        workspace_layout.addLayout(batch_row)
 
         # Divider line
         line = QFrame()
@@ -629,8 +640,18 @@ class MainWindow(QMainWindow):
         if self.batch_items:
             self.batch_label.setText(f"Batch mode: {len(self.batch_items)} items loaded")
             self.batch_label.setVisible(True)
+            self.btn_clear_batch.setVisible(True)
         else:
             self.batch_label.setVisible(False)
+            self.btn_clear_batch.setVisible(False)
+
+    def clear_batch(self):
+        self.batch_items = []
+        self.batch_index = 0
+        self.current_batch_script = None
+        self.input_edit.clear()
+        self._update_batch_label()
+        self.append_info_log("Batch cleared. Ready for single input.")
 
     def _set_input(self, value):
         self.input_edit.setText(value)
